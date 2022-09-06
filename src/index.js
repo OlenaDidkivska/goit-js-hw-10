@@ -1,53 +1,41 @@
 import './css/styles.css';
 import debounce from 'lodash.debounce';
 import Notiflix from 'notiflix';
+import { fetchCountries } from './fetchCountries';
 
 const DEBOUNCE_DELAY = 300;
 const inputEl = document.querySelector('#search-box');
 const countryList = document.querySelector('.country-list');
 const countryInfo = document.querySelector('.country-info');
 
-function fetchCountries(name) {
-  const selectedCountries = fetch(
-    `https://restcountries.com/v3.1/name/${name}?fields=name,capital,population,flags,languages`
-  )
-    .then(responce => {
-      return responce.json();
-    })
-    .then(verificationInfo)
-    .catch(error => {
-      console.log(error);
-    });
-  console.log(selectedCountries);
-}
-
 function oninputHendler(event) {
-  const input = event.currentTarget.value.trim();
-  console.log(input);
-  fetchCountries(input);
+  const input = inputEl.value.trim();
+  if (input) {
+    fetchCountries(input).then(verificationInfo).catch(onFetchError);
+  }
 }
 
 function renderCountriesCard(countries) {
-  const marcup = countries
-    .map(
-      ({ flags, name }) =>
-        `<li><img class = 'flag' alt = ${name.official} src = ${flags.svg} height = 20 style = 'margin-right: 10px'><span class = "nameCountry" style = 'font-weight: 600'>${name.official}</span></img></li>`
-    )
-    .join('');
-  countryList.innerHTML = marcup;
+  const marcup = countries.reduce(
+    (acc, { flags, name }) =>
+      acc +
+      `<li><img class = 'flag' alt = ${name.official} src = ${flags.svg} height = 20 style = 'margin-right: 10px'><span class = "nameCountry" style = 'font-weight: 600'>${name.official}</span></img></li>`,
+    ''
+  );
+  return marcup;
 }
 
 function renderAddInfo(countries) {
-  const countryEl = countries
-    .map(
-      ({ flags, name, capital, population, ...languages }) =>
-        `<li><img class = 'flag' alt = ${name.official} src = ${flags.svg} height = 40 style = 'font-size: 40px'><span class = "nameCountry" style = 'font-weight: 600'>${name.official}</span></img></li>
-        <li><p class = 'capital'>Capital: ${capital}</p></li>
-        <li><p class = 'population'>Population: ${population}</p></li>
-        <li><p class = 'languages'>Languages: ${languages}</p></li>`
-    )
-    .join('');
-  countryInfo.innerHTML = countryEl;
+  const countryEl = countries.reduce(
+    (acc, { flags, name, capital, population, ...languages }) =>
+      acc +
+      `<li><img class = 'flag' alt = ${name.official} src = ${flags.svg} height = 40 style = 'margin-right: 20px'><span class = "nameCountry" style="margin-right: 20px; font-weight: 600; text-align: center; font-size: 40px">${name.official}</span></img></li>
+        <li><span style="font-weight: 600; margin: 20px; line-height: 2">Capital:</span> ${capital}</li>
+        <li><span style="font-weight: 600; margin: 20px; line-height: 2">Population:</span> ${population}</li>
+        <li><span style="font-weight: 600; margin: 20px; line-height: 2">Languages:</span> ${languages}</li>`,
+    ''
+  );
+  return countryEl;
 }
 
 function verificationInfo(countries) {
@@ -55,16 +43,23 @@ function verificationInfo(countries) {
     Notiflix.Notify.info(
       'Too many matches found. Please enter a more specific name.'
     );
-    countryInfo.innerHTML = '';
+    countryInfo.textContent = '';
+    countryList.textContent = '';
   } else {
-    renderCountriesCard(countries);
+    countryList.innerHTML = renderCountriesCard(countries);
+    countryInfo.textContent = '';
   }
   if (countries.length === 1) {
-    renderAddInfo(countries);
+    countryList.textContent = '';
+    countryInfo.innerHTML = renderAddInfo(countries);
   }
 }
 
-inputEl.addEventListener('input', oninputHendler);
+function onFetchError(error) {
+  Notiflix.Notify.failure('Oops, there is no country with that name');
+}
+
+inputEl.addEventListener('input', debounce(oninputHendler, DEBOUNCE_DELAY));
 
 countryList.style.listStyle = 'none';
 countryInfo.style.listStyle = 'none';
